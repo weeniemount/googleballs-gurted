@@ -41,6 +41,40 @@
         local dt = 0.1
         local particles = {}
         local isRunning = false
+
+        -- Mouse position update function
+        local function updateMousePos(event)
+            -- Try different event properties that might be available
+            mousePos.x = event.x or event.pageX or event.clientX or canvasWidth/2
+            mousePos.y = event.y or event.pageY or event.clientY or canvasHeight/2
+        end
+        
+        -- Event handlers - Try multiple approaches
+        -- Method 1: Canvas mouse events
+        canvas:on('mousemove', updateMousePos)
+        
+        -- Method 2: Body mouse events  
+        gurt.body:on('mousemove', updateMousePos)
+        
+        -- Method 3: Try mouseenter/mouseover for canvas
+        canvas:on('mouseenter', updateMousePos)
+        canvas:on('mouseover', updateMousePos)
+        
+        -- Touch support
+        canvas:on('touchmove', function(event)
+            if event.touches and #event.touches > 0 then
+                mousePos.x = event.touches[1].pageX or event.touches[1].x or canvasWidth/2
+                mousePos.y = event.touches[1].pageY or event.touches[1].y or canvasHeight/2
+            end
+        end)
+        
+        canvas:on('touchstart', function(event)
+            if event.touches and #event.touches > 0 then
+                mousePos.x = event.touches[1].pageX or event.touches[1].x or canvasWidth/2
+                mousePos.y = event.touches[1].pageY or event.touches[1].y or canvasHeight/2
+            end
+        end)
+        
         
         -- Point/Particle class
         local function createParticle(x, y, size, color)
@@ -175,6 +209,30 @@
             end
         end
         
+        -- Update canvas size
+        local function updateCanvasSize()
+            canvasWidth = gurt.width()
+            canvasHeight = gurt.height()
+            
+            canvas:setAttribute('width', tostring(canvasWidth))
+            canvas:setAttribute('height', tostring(canvasHeight))
+            
+            -- Recenter particles
+            local offsetX = canvasWidth/2 - 180
+            local offsetY = canvasHeight/2 - 65
+            
+            for i = 1, #particles do
+                local particle = particles[i]
+                local relX = particle.originalPos.x - (canvasWidth/2 - 180)
+                local relY = particle.originalPos.y - (canvasHeight/2 - 65)
+                
+                particle.originalPos.x = offsetX + relX
+                particle.originalPos.y = offsetY + relY
+                particle.curPos.x = particle.originalPos.x
+                particle.curPos.y = particle.originalPos.y
+            end
+        end
+        
         -- Animation loop
         local function animate()
             if not isRunning then return end
@@ -187,42 +245,18 @@
             end, 30)
         end
         
-        -- Mouse position update function
-        local function updateMousePos(event)
-            -- Try different event properties that might be available
-            mousePos.x = event.x or event.pageX or event.clientX or canvasWidth/2
-            mousePos.y = event.y or event.pageY or event.clientY or canvasHeight/2
+        
+        -- Window resize handler
+        local function onResize()
+            setTimeout(function()
+                updateCanvasSize()
+                draw()
+            end, 100)
         end
-        
-        -- Event handlers - Try multiple approaches
-        -- Method 1: Canvas mouse events
-        canvas:on('mousemove', updateMousePos)
-        
-        -- Method 2: Body mouse events  
-        gurt.body:on('mousemove', updateMousePos)
-        
-        -- Method 3: Try mouseenter/mouseover for canvas
-        canvas:on('mouseenter', updateMousePos)
-        canvas:on('mouseover', updateMousePos)
-        
-        -- Touch support
-        canvas:on('touchmove', function(event)
-            if event.touches and #event.touches > 0 then
-                mousePos.x = event.touches[1].pageX or event.touches[1].x or canvasWidth/2
-                mousePos.y = event.touches[1].pageY or event.touches[1].y or canvasHeight/2
-            end
-        end)
-        
-        canvas:on('touchstart', function(event)
-            if event.touches and #event.touches > 0 then
-                mousePos.x = event.touches[1].pageX or event.touches[1].x or canvasWidth/2
-                mousePos.y = event.touches[1].pageY or event.touches[1].y or canvasHeight/2
-            end
-        end)
-        
         
         -- Initialize everything
         local function init()
+            updateCanvasSize()
             initParticles()
             
             isRunning = true
