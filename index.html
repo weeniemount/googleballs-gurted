@@ -175,30 +175,6 @@
             end
         end
         
-        -- Update canvas size
-        local function updateCanvasSize()
-            canvasWidth = gurt.width()
-            canvasHeight = gurt.height()
-            
-            canvas:setAttribute('width', tostring(canvasWidth))
-            canvas:setAttribute('height', tostring(canvasHeight))
-            
-            -- Recenter particles
-            local offsetX = canvasWidth/2 - 180
-            local offsetY = canvasHeight/2 - 65
-            
-            for i = 1, #particles do
-                local particle = particles[i]
-                local relX = particle.originalPos.x - (canvasWidth/2 - 180)
-                local relY = particle.originalPos.y - (canvasHeight/2 - 65)
-                
-                particle.originalPos.x = offsetX + relX
-                particle.originalPos.y = offsetY + relY
-                particle.curPos.x = particle.originalPos.x
-                particle.curPos.y = particle.originalPos.y
-            end
-        end
-        
         -- Animation loop
         local function animate()
             if not isRunning then return end
@@ -244,17 +220,9 @@
             end
         end)
         
-        -- Window resize handler
-        local function onResize()
-            setTimeout(function()
-                updateCanvasSize()
-                draw()
-            end, 100)
-        end
         
         -- Initialize everything
         local function init()
-            updateCanvasSize()
             initParticles()
             
             isRunning = true
