@@ -1,15 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Google Balls Desktop</title>
-    <meta name="theme-color" content="#000000">
-    <meta name="description" content="Balls le Goog">
-    
-    <link rel="stylesheet" href="https://raw.githubusercontent.com/weeniemount/googleballs-gurted/refs/heads/main/style.css">
+    <title>Interactive Balls - Gurted</title>
+    <meta charset="utf-8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        body {
+            color: #ccc;
+            font-family: 'Helvetica Neue', Verdana, sans-serif;
+            font-size: 20px;
+            background: #000;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        #reload-msg {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+        }
+    </style>
 </head>
-
 <body>
-    <div id="reload-msg">
-        Press Ctrl + R if the balls are stuck in the top left corner
-    </div>
+    <div id="reload-msg">Move your mouse to interact with the particles!</div>
     <canvas id="canvas"></canvas>
-    <script src="https://raw.githubusercontent.com/weeniemount/googleballs-gurted/refs/heads/main/script.lua"></script>
+    
+    <script>
+        -- Global variables
+        local canvas = gurt.select('#canvas')
+        local ctx = canvas:withContext('2d')
+        local canvasWidth = gurt.width()
+        local canvasHeight = gurt.height()
+        local mousePos = {x = canvasWidth/2, y = canvasHeight/2}
+        local dt = 0.1
+        local particles = {}
+        local isRunning = false
+        
+        -- Point/Particle class
+        local function createParticle(x, y, size, color)
+            return {
+                curPos = {x = x, y = y, z = 1.0},
+                originalPos = {x = x, y = y, z = 1.0},
+                targetPos = {x = x, y = y, z = 1.0},
+                velocity = {x = 0.0, y = 0.0, z = 0.0},
+                size = size,
+                radius = size,
+                color = color,
+                friction = 0.8,
+                springStrength = 0.1
+            }
+        end
+        
+        -- Initialize particles with Google-like colors
+        local function initParticles()
+            local particleData = {
+                {202, 78, 9, "#ed9d33"}, {348, 83, 9, "#d44d61"}, {256, 69, 9, "#4f7af2"}, 
+                {214, 59, 9, "#ef9a1e"}, {265, 36, 9, "#4976f3"}, {300, 78, 9, "#269230"}, 
+                {294, 59, 9, "#1f9e2c"}, {45, 88, 9, "#1c48dd"}, {268, 52, 9, "#2a56ea"}, 
+                {73, 83, 9, "#3355d8"}, {294, 6, 9, "#36b641"}, {235, 62, 9, "#2e5def"},
+                {353, 42, 8, "#d53747"}, {336, 52, 8, "#eb676f"}, {208, 41, 8, "#f9b125"}, 
+                {321, 70, 8, "#de3646"}, {8, 60, 8, "#2a59f0"}, {180, 81, 8, "#eb9c31"}, 
+                {146, 65, 8, "#c41731"}, {145, 49, 8, "#d82038"}, {246, 34, 8, "#5f8af8"}, 
+                {169, 69, 8, "#efa11e"}, {273, 99, 8, "#2e55e2"}, {248, 120, 8, "#4167e4"}, 
+                {294, 41, 8, "#0b991a"}, {267, 114, 8, "#4869e3"}, {78, 67, 8, "#3059e3"}, 
+                {294, 23, 8, "#10a11d"}, {117, 83, 8, "#cf4055"}, {137, 80, 8, "#cd4359"}, 
+                {14, 71, 8, "#2855ea"}, {331, 80, 8, "#ca273c"}, {25, 82, 8, "#2650e1"}, 
+                {233, 46, 8, "#4a7bf9"}, {73, 13, 8, "#3d65e7"}, {327, 35, 6, "#f47875"}, 
+                {319, 46, 6, "#f36764"}, {256, 81, 6, "#1d4eeb"}, {244, 88, 6, "#698bf1"}, 
+                {194, 32, 6, "#fac652"}, {97, 56, 6, "#ee5257"}, {105, 75, 6, "#cf2a3f"}, 
+                {42, 4, 6, "#5681f5"}, {10, 27, 6, "#4577f6"}, {166, 55, 6, "#f7b326"}, 
+                {266, 88, 6, "#2b58e8"}, {178, 34, 6, "#facb5e"}, {100, 65, 6, "#e02e3d"}, 
+                {343, 32, 6, "#f16d6f"}, {59, 5, 6, "#507bf2"}, {27, 9, 6, "#5683f7"}, 
+                {233, 116, 6, "#3158e2"}, {123, 32, 6, "#f0696c"}, {6, 38, 6, "#3769f6"}, 
+                {63, 62, 6, "#6084ef"}, {6, 49, 6, "#2a5cf4"}, {108, 36, 6, "#f4716e"}, 
+                {169, 43, 6, "#f8c247"}, {137, 37, 6, "#e74653"}, {318, 58, 6, "#ec4147"}, 
+                {226, 100, 5, "#4876f1"}, {101, 46, 5, "#ef5c5c"}, {226, 108, 5, "#2552ea"}, 
+                {17, 17, 5, "#4779f7"}, {232, 93, 5, "#4b78f1"}
+            }
+            
+            particles = {}
+            local offsetX = canvasWidth/2 - 180
+            local offsetY = canvasHeight/2 - 65
+            
+            for i = 1, #particleData do
+                local data = particleData[i]
+                local particle = createParticle(
+                    offsetX + data[1], 
+                    offsetY + data[2], 
+                    data[3], 
+                    data[4]
+                )
+                table.insert(particles, particle)
+            end
+        end
+        
+        -- Update particle physics
+        local function updateParticle(particle)
+            -- Calculate distance to mouse
+            local dx = mousePos.x - particle.curPos.x
+            local dy = mousePos.y - particle.curPos.y
+            local distance = math.sqrt(dx * dx + dy * dy)
+            
+            -- Set target position based on mouse proximity
+            if distance < 150 then
+                particle.targetPos.x = particle.curPos.x - dx
+                particle.targetPos.y = particle.curPos.y - dy
+            else
+                particle.targetPos.x = particle.originalPos.x
+                particle.targetPos.y = particle.originalPos.y
+            end
+            
+            -- Apply spring physics for X
+            local deltaX = particle.targetPos.x - particle.curPos.x
+            local accelX = deltaX * particle.springStrength
+            particle.velocity.x = particle.velocity.x + accelX
+            particle.velocity.x = particle.velocity.x * particle.friction
+            particle.curPos.x = particle.curPos.x + particle.velocity.x
+            
+            -- Apply spring physics for Y
+            local deltaY = particle.targetPos.y - particle.curPos.y
+            local accelY = deltaY * particle.springStrength
+            particle.velocity.y = particle.velocity.y + accelY
+            particle.velocity.y = particle.velocity.y * particle.friction
+            particle.curPos.y = particle.curPos.y + particle.velocity.y
+            
+            -- Calculate Z (depth) based on distance from original position
+            local originalDx = particle.originalPos.x - particle.curPos.x
+            local originalDy = particle.originalPos.y - particle.curPos.y
+            local originalDistance = math.sqrt(originalDx * originalDx + originalDy * originalDy)
+            
+            particle.targetPos.z = originalDistance/100 + 1
+            local deltaZ = particle.targetPos.z - particle.curPos.z
+            local accelZ = deltaZ * particle.springStrength
+            particle.velocity.z = particle.velocity.z + accelZ
+            particle.velocity.z = particle.velocity.z * particle.friction
+            particle.curPos.z = particle.curPos.z + particle.velocity.z
+            
+            -- Update radius based on Z depth
+            particle.radius = particle.size * particle.curPos.z
+            if particle.radius < 1 then
+                particle.radius = 1
+            end
+        end
+        
+        -- Draw single particle
+        local function drawParticle(particle)
+            ctx:setFillStyle(particle.color)
+            ctx:beginPath()
+            ctx:arc(particle.curPos.x, particle.curPos.y, particle.radius, 0, 2 * math.pi, false)
+            ctx:fill()
+        end
+        
+        -- Main draw function
+        local function draw()
+            -- Clear canvas
+            ctx:clearRect(0, 0, canvasWidth, canvasHeight)
+            
+            -- Draw all particles
+            for i = 1, #particles do
+                drawParticle(particles[i])
+            end
+        end
+        
+        -- Main update function
+        local function update()
+            for i = 1, #particles do
+                updateParticle(particles[i])
+            end
+        end
+        
+        -- Update canvas size
+        local function updateCanvasSize()
+            canvasWidth = gurt.width()
+            canvasHeight = gurt.height()
+            
+            canvas:setAttribute('width', tostring(canvasWidth))
+            canvas:setAttribute('height', tostring(canvasHeight))
+            
+            -- Recenter particles
+            local offsetX = canvasWidth/2 - 180
+            local offsetY = canvasHeight/2 - 65
+            
+            for i = 1, #particles do
+                local particle = particles[i]
+                local relX = particle.originalPos.x - (canvasWidth/2 - 180)
+                local relY = particle.originalPos.y - (canvasHeight/2 - 65)
+                
+                particle.originalPos.x = offsetX + relX
+                particle.originalPos.y = offsetY + relY
+                particle.curPos.x = particle.originalPos.x
+                particle.curPos.y = particle.originalPos.y
+            end
+        end
+        
+        -- Animation loop
+        local function animate()
+            if not isRunning then return end
+            
+            update()
+            draw()
+            
+            setTimeout(function()
+                animate()
+            end, 30)
+        end
+        
+        -- Event handlers
+        gurt.body:on('mousemove', function(event)
+            mousePos.x = event.pageX or event.x or canvasWidth/2
+            mousePos.y = event.pageY or event.y or canvasHeight/2
+        end)
+        
+        -- Touch support
+        canvas:on('touchmove', function(event)
+            if event.touches and #event.touches > 0 then
+                mousePos.x = event.touches[1].pageX or event.touches[1].x or canvasWidth/2
+                mousePos.y = event.touches[1].pageY or event.touches[1].y or canvasHeight/2
+            end
+        end)
+        
+        canvas:on('touchstart', function(event)
+            if event.touches and #event.touches > 0 then
+                mousePos.x = event.touches[1].pageX or event.touches[1].x or canvasWidth/2
+                mousePos.y = event.touches[1].pageY or event.touches[1].y or canvasHeight/2
+            end
+        end)
+        
+        -- Window resize handler
+        local function onResize()
+            setTimeout(function()
+                updateCanvasSize()
+                draw()
+            end, 100)
+        end
+        
+        -- Initialize everything
+        local function init()
+            updateCanvasSize()
+            initParticles()
+            
+            isRunning = true
+            animate()
+            
+            -- Show message
+            local reloadMsg = gurt.select('#reload-msg')
+            reloadMsg.visible = true
+            
+            setTimeout(function()
+                reloadMsg.visible = false
+            end, 4000)
+        end
+        
+        -- Start the application
+        init()
+        
+        trace.log('Interactive balls animation loaded! Move your mouse to interact.')
+    </script>
 </body>
+</html>
