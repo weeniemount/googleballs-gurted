@@ -211,11 +211,23 @@
             end, 30)
         end
         
-        -- Event handlers
-        gurt.body:on('mousemove', function(event)
-            mousePos.x = event.pageX or event.x or canvasWidth/2
-            mousePos.y = event.pageY or event.y or canvasHeight/2
-        end)
+        -- Mouse position update function
+        local function updateMousePos(event)
+            -- Try different event properties that might be available
+            mousePos.x = event.x or event.pageX or event.clientX or canvasWidth/2
+            mousePos.y = event.y or event.pageY or event.clientY or canvasHeight/2
+        end
+        
+        -- Event handlers - Try multiple approaches
+        -- Method 1: Canvas mouse events
+        canvas:on('mousemove', updateMousePos)
+        
+        -- Method 2: Body mouse events  
+        gurt.body:on('mousemove', updateMousePos)
+        
+        -- Method 3: Try mouseenter/mouseover for canvas
+        canvas:on('mouseenter', updateMousePos)
+        canvas:on('mouseover', updateMousePos)
         
         -- Touch support
         canvas:on('touchmove', function(event)
