@@ -26,22 +26,9 @@
             top: 0;
             left: 0;
         }
-        
-        #reload-msg {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            z-index: 1000;
-            display: none;
-        }
     </style>
 </head>
 <body>
-    <div id="reload-msg">Move your mouse to interact with the particles!</div>
     <canvas id="canvas"></canvas>
     
     <script>
@@ -260,20 +247,10 @@
             
             isRunning = true
             animate()
-            
-            -- Show message
-            local reloadMsg = gurt.select('#reload-msg')
-            reloadMsg.visible = true
-            
-            setTimeout(function()
-                reloadMsg.visible = false
-            end, 4000)
         end
         
         -- Start the application
         init()
-        
-        trace.log('Interactive balls animation loaded! Move your mouse to interact.')
     </script>
 </body>
 </html>
