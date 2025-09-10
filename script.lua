@@ -278,8 +278,3 @@ function update()
         pointCollection:update()
     end
 end
-
--- Start the application when page loads
-gurt.ready(function()
-    init()
-end)
